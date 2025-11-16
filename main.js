@@ -1,7 +1,7 @@
 // main.js
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, webContents, Menu, dialog } = require("electron");
 const path = require("path");
-const config = require("./config");
+const { version } = require("./package.json");
 
 let mainWindow;
 
@@ -9,12 +9,13 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1800,
     height: 1000,
+    title: `Multi-AI Browser v${version}`,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-    nodeIntegration: false,
-    contextIsolation: true,
-    sandbox: false,
-    webviewTag: true
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webviewTag: true
     }
   });
 
@@ -108,6 +109,68 @@ ipcMain.on("broadcast-prompt", async (event, prompt) => {
 
 app.whenReady().then(() => {
   createWindow();
+
+
+  const template = [
+    {
+      label: "Multi-AI Browser",
+      submenu: [
+        {
+          label: `About Multi-AI Browser`,
+          click: () => {
+            dialog.showMessageBox({
+              type: "info",
+              title: "About",
+              message: `Multi-AI Browser\nVersion: ${version}`
+            });
+          }
+        },
+        { type: "separator" },
+        { role: "quit", label: "Exit" }
+      ]
+    },
+    {
+      label: "Actions",
+      submenu: [
+        {
+          label: "Send Prompt to All",
+          accelerator: "Ctrl+Enter",
+          click: () => {
+            if (BrowserWindow.getAllWindows().length > 0) {
+              BrowserWindow.getAllWindows()[0]
+                .webContents.send("menu-send-prompt");
+            }
+          }
+        },
+        {
+          label: "Reload All Panels",
+          accelerator: "Ctrl+Shift+R",
+          click: () => {
+            if (BrowserWindow.getAllWindows().length > 0) {
+              BrowserWindow.getAllWindows()[0]
+                .webContents.send("reload-all-panels");
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "togglefullscreen", label: "Toggle Full Screen" }
+      ]
+    },
+    {
+      label: "Developer",
+      submenu: [
+        { role: "reload", label: "Reload Window" },
+        { role: "toggleDevTools", label: "Toggle DevTools" }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 
   app.on("activate", function() {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

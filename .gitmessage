@@ -1,0 +1,69 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+# 
+# Detailed explanation of the change, why it was made, and any relevant context.
+#
+# <footer>
+# 
+# BREAKING CHANGE: Description of the breaking change, if applicable.
+#
+# type: feat, fix, docs, style, refactor, test, chore
+# scope: optional (e.g., renderer, ui, config)
+# subject: Use the imperative mood (e.g., "add", "fix", "update")
+# 
+# Examples:
+# 
+# feat(panel): add resizable panel functionality
+# fix(webview): resolve issue with webview not loading
+# docs(README): update installation instructions
+#
+# Instructions:
+#
+# 1. Use the Commit Template
+# You have already created a commit template in .gitmessage. This helps you maintain the structure for your commits.
+#
+# 2. Write the Commit Message
+# When you make a commit, open the editor to write the message. Here’s how to do it:
+#
+# Stage Changes:
+# git add .
+#
+# Execute Commit:
+# git commit
+#
+# Editor Opens:
+# Your template will be displayed. Fill it out by adding the relevant information. For example:
+# feat(ui): add dark mode toggle
+# Implement a toggle for dark mode in the UI to enhance user experience.
+# BREAKING CHANGE: The default theme is now dark.
+#
+# 3. Commit Types
+# Here are the types you can use:
+#
+# feat: for new features
+# fix: for bug fixes
+# docs: for documentation changes
+# style: for formatting changes that do not affect logic (e.g., whitespace, formatting)
+# refactor: for code changes that do not add new features or fix bugs
+# test: for adding or modifying tests
+# chore: for changes that do not affect the code (e.g., build processes)
+#
+# 4. Example Commits
+# Here are some examples of how to formulate your commits:
+#
+# Adding a New Feature:
+# feat(panel): add resizable panel functionality
+#
+# Bug Fix:
+# fix(webview): resolve issue with webview not loading
+#
+# Updating Documentation:
+# docs(README): update installation instructions
+#
+# 5. Execute the Commit
+# After you have filled out the message, save and close the editor. Your commit will then be created with the specified message.
+#
+# 6. Update the CHANGELOG
+# After the commit, you can update the CHANGELOG with the following command:
+# npm run changelog

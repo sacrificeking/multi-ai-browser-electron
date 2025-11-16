@@ -1,11 +1,16 @@
 // renderer.js
-
 window.addEventListener("DOMContentLoaded", () => {
+  // Version anzeigen
+  const vEl = document.getElementById("appVersion");
+  if (vEl && window.appInfo && window.appInfo.version) {
+    vEl.textContent = `v${window.appInfo.version}`;
+  }
+
   const panels = [
     { id: "panel-chatgpt", title: "Chatti", url: "https://chat.openai.com" },
-    { id: "panel-grok",    title: "Grokki",  url: "https://grok.com" },       // anpassen, falls andere URL
+    { id: "panel-grok",    title: "Grokki",  url: "https://grok.com" },
     { id: "panel-claude",  title: "Clodi",  url: "https://claude.ai" },
-    { id: "panel-veni",    title: "Veni",    url: "https://venice.ai" },      // Beispiel
+    { id: "panel-veni",    title: "Veni",    url: "https://venice.ai" },
     { id: "panel-gemini",  title: "Geminii",  url: "https://gemini.google.com" }
   ];
 
@@ -164,11 +169,10 @@ window.addEventListener("DOMContentLoaded", () => {
     })();
   `;
 
-  const sendPrompt = () => {
+  function sendPrompt() {
     const prompt = promptInput.value.trim();
     if (!prompt) return;
 
-    // direkt jede Webview ansprechen
     webviews.forEach(wv => {
       try {
         wv.executeJavaScript(injectScript(prompt), false)
@@ -182,7 +186,7 @@ window.addEventListener("DOMContentLoaded", () => {
         console.error("Error calling executeJavaScript on webview:", err);
       }
     });
-  };
+  }
 
   sendButton.addEventListener("click", sendPrompt);
   promptInput.addEventListener("keydown", (e) => {
@@ -191,4 +195,18 @@ window.addEventListener("DOMContentLoaded", () => {
       sendPrompt();
     }
   });
+
+  // Menü-Events aus preload.js
+  if (window.electronAPI) {
+    if (window.electronAPI.onReloadAllPanels) {
+      window.electronAPI.onReloadAllPanels(() => {
+        webviews.forEach(wv => wv.reload());
+      });
+    }
+    if (window.electronAPI.onMenuSendPrompt) {
+      window.electronAPI.onMenuSendPrompt(() => {
+        sendPrompt();
+      });
+    }
+  }
 });

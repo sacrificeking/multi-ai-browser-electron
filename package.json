@@ -5,13 +5,17 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"No tests specified\" && exit 0",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^39.2.0"
+    "conventional-changelog-cli": "^5.0.0",
+    "electron": "^39.2.0",
+    "semantic-release": "^25.0.2",
+    "standard-version": "^9.5.0"
   }
 }
