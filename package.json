@@ -1,0 +1,17 @@
+{
+  "name": "multi-ai-browser",
+  "version": "1.0.0",
+  "description": "Electron-basierter Multi-Browser mit Meta-Prompt für mehrere AI-UIs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^39.2.0"
+  }
+}
