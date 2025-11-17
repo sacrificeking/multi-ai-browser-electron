@@ -6,35 +6,108 @@ window.addEventListener("DOMContentLoaded", () => {
     vEl.textContent = `v${window.appInfo.version}`;
   }
 
-  const panels = [
-    { id: "panel-chatgpt", title: "Chatti", url: "https://chat.openai.com" },
-    { id: "panel-grok",    title: "Grokki",  url: "https://grok.com" },
-    { id: "panel-claude",  title: "Clodi",  url: "https://claude.ai" },
-    { id: "panel-veni",    title: "Veni",    url: "https://venice.ai" },
-    { id: "panel-gemini",  title: "Geminii",  url: "https://gemini.google.com" }
+  const defaultPanels = [
+    { id: "panel-chatgpt", title: "ChatGPT", url: "https://chat.openai.com" },
+    { id: "panel-claude", title: "Claude", url: "https://claude.ai" },
+    { id: "panel-gemini", title: "Gemini", url: "https://gemini.google.com" },
+    { id: "panel-grok", title: "Grok", url: "https://grok.com" },
+    { id: "panel-venice", title: "Venice", url: "https://venice.ai" }
   ];
 
-  const panelContainer = document.getElementById("panelContainer");
-  const webviews = []; // hier sammeln wir alle Webview-Refs
+  const panelsFromConfig = window.panelConfig && Array.isArray(window.panelConfig.panels)
+    ? window.panelConfig.panels
+    : [];
+  const panels = panelsFromConfig.length > 0 ? panelsFromConfig : defaultPanels;
 
-  // Panels dynamisch erzeugen
+  const panelContainer = document.getElementById("panelContainer");
+  const webviews = [];
+
   panels.forEach(panel => {
     const panelDiv = document.createElement("div");
     panelDiv.className = "panel";
 
+    // 1) Titelzeile
     const headerDiv = document.createElement("div");
     headerDiv.className = "panel-header";
     headerDiv.textContent = panel.title;
 
+    // 2) Adresszeile
+    const addrBar = document.createElement("div");
+    addrBar.className = "panel-addressbar";
+
+    const addrInput = document.createElement("input");
+    addrInput.type = "text";
+    addrInput.className = "panel-addressbar-input";
+    addrInput.value = panel.url; // Start-URL vorbefuellen
+
+    const addrButton = document.createElement("button");
+    addrButton.className = "panel-addressbar-button";
+    addrButton.textContent = "Go";
+
+    addrBar.appendChild(addrInput);
+    addrBar.appendChild(addrButton);
+
+    // 3) Webview
     const webview = document.createElement("webview");
     webview.className = "panel-webview";
     webview.setAttribute("src", panel.url);
     webview.setAttribute("allowpopups", "true");
 
-    // Referenz speichern
     webviews.push(webview);
 
+    const setHeader = (titleText, urlText) => {
+      const cleanedTitle = (titleText || "").trim();
+      if (cleanedTitle) {
+        headerDiv.textContent = cleanedTitle;
+        return;
+      }
+      if (urlText) {
+        try {
+          const host = new URL(urlText).host;
+          if (host) {
+            headerDiv.textContent = host;
+            return;
+          }
+        } catch (err) {
+          // ignore invalid URL
+        }
+      }
+      headerDiv.textContent = panel.title;
+    };
+
+    // Navigation von der Adresszeile aus steuern
+    const navigate = () => {
+      let url = addrInput.value.trim();
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+      }
+      webview.loadURL(url);
+    };
+
+    addrButton.addEventListener("click", navigate);
+    addrInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        navigate();
+      }
+    });
+
+    // Wenn im Webview navigiert wird, Adresszeile aktualisieren
+    webview.addEventListener("did-navigate", (event) => {
+      addrInput.value = event.url;
+      setHeader("", event.url);
+    });
+    webview.addEventListener("did-navigate-in-page", (event) => {
+      addrInput.value = event.url;
+      setHeader("", event.url);
+    });
+    webview.addEventListener("page-title-updated", (event) => {
+      setHeader(event.title, addrInput.value);
+    });
+
     panelDiv.appendChild(headerDiv);
+    panelDiv.appendChild(addrBar);
     panelDiv.appendChild(webview);
     panelContainer.appendChild(panelDiv);
   });
@@ -43,127 +116,178 @@ window.addEventListener("DOMContentLoaded", () => {
   const sendButton = document.getElementById("sendButton");
 
   const injectScript = (prompt) => `
-    (function () {
+    (async function () {
       const promptText = ${JSON.stringify(prompt)};
+      const delay = (ms) => new Promise(res => setTimeout(res, ms));
       const host = location.host || "";
 
-      function setValue(el) {
-        if (!el) return "no-input-found";
+      const selectorMap = {
+        chatgpt: [
+          "[data-testid=\\"conversation-ql-editor\\"] div[contenteditable=\\"true\\"]",
+          "[data-id=\\"root\\"] textarea",
+          "textarea",
+          "div[contenteditable=\\"true\\"]"
+        ],
+        claude: [
+          "[data-testid=\\"chat-input-box\\"] textarea",
+          "[data-testid=\\"chat-input-box\\"] div[contenteditable=\\"true\\"]",
+          "[data-testid=\\"chat-input\\"] textarea",
+          "[data-testid=\\"chat-input\\"] div[contenteditable=\\"true\\"]",
+          "[role=\\"textbox\\"][contenteditable=\\"true\\"]",
+          "textarea[placeholder*=\\"Message\\"]",
+          "textarea[aria-label*=\\"Message\\"]",
+          "textarea"
+        ],
+        grok: [
+          "[data-testid*=\\"composer\\"] div[contenteditable=\\"true\\"]",
+          "[data-testid*=\\"composer\\"] textarea",
+          "[role=\\"textbox\\"][contenteditable=\\"true\\"]",
+          "textarea[data-testid*=\\"composer\\"]",
+          "textarea[placeholder*=\\"ask\\"]",
+          "textarea[placeholder*=\\"frage\\"]",
+          "textarea"
+        ],
+        venice: [
+          "[role=\\"textbox\\"][contenteditable]",
+          "[data-testid*=\\"chat-input\\"] div[contenteditable=\\"true\\"]",
+          "[data-testid*=\\"chat-input\\"] textarea",
+          "form textarea",
+          "form [contenteditable=\\"true\\"]",
+          "textarea[placeholder*=\\"Ask a question\\"]",
+          "div[contenteditable=\\"true\\"]",
+          "textarea"
+        ],
+        gemini: [
+          "[contenteditable=\\"true\\"][role=\\"textbox\\"]",
+          "[aria-label*=\\"Prompt\\"][contenteditable=\\"true\\"]",
+          "[aria-label*=\\"Message\\"][contenteditable=\\"true\\"]",
+          "[contenteditable=\\"true\\"][data-aria-label]",
+          "textarea[aria-label]",
+          "textarea[jsname]",
+          "textarea"
+        ],
+        generic: [
+          "textarea",
+          "div[contenteditable=\\"true\\"]",
+          "input[type=\\"text\\"]",
+          "input[type=\\"search\\"]"
+        ]
+      };
 
-        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
-          el.value = promptText;
-        } else {
-          el.innerText = promptText;
+      const isVisible = (el) => {
+        if (!el) return false;
+        if (el.offsetParent !== null) return true;
+        const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+        return !!rect && rect.width > 0 && rect.height > 0;
+      };
+
+      const collectMatches = (root, selectors) => {
+        const results = [];
+        selectors.forEach(sel => {
+          try {
+            results.push(...root.querySelectorAll(sel));
+          } catch (err) {
+            // ignore invalid selectors on certain hosts
+          }
+        });
+        return results;
+      };
+
+      const deepFindVisible = (selectors) => {
+        const stack = [document];
+        const candidates = [];
+
+        while (stack.length) {
+          const node = stack.pop();
+          if (!node) continue;
+          if (node.querySelectorAll) {
+            selectors.forEach(sel => {
+              try {
+                candidates.push(...node.querySelectorAll(sel));
+              } catch (err) {
+                // ignore invalid selectors
+              }
+            });
+          }
+          // traverse shadow DOM
+          if (node.shadowRoot) {
+            stack.push(node.shadowRoot);
+          }
+          // traverse children
+          if (node.children) {
+            for (const child of node.children) {
+              stack.push(child);
+            }
+          }
         }
 
-        const inputEvent = new InputEvent("input", { bubbles: true });
-        el.dispatchEvent(inputEvent);
+        const visible = candidates.filter(isVisible);
+        if (visible.length > 0) return visible[visible.length - 1];
+        if (candidates.length > 0) return candidates[candidates.length - 1];
+        return null;
+      };
 
+      const setValueAndNotify = (el) => {
+        if (!el) return "no-input-found";
+        const isTextControl = el.tagName === "TEXTAREA" || el.tagName === "INPUT";
+        try {
+          el.focus({ preventScroll: true });
+          if (typeof el.click === "function") el.click();
+        } catch (err) {
+          // focus best-effort
+        }
+        if (isTextControl) {
+          el.value = promptText;
+          if (typeof el.setSelectionRange === "function") {
+            const end = promptText.length;
+            el.setSelectionRange(end, end);
+          }
+        } else {
+          el.textContent = promptText;
+        }
+        el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
         return "ok";
-      }
+      };
 
-      // optionaler Autosend – wird von vielen Seiten ignoriert,
-      // aber schadet nicht, wenn er "ins Leere" geht
-      function trySend(el) {
+      const trySend = (el) => {
         if (!el) return;
-        const kd = new KeyboardEvent("keydown", {
+        const eventInit = {
           key: "Enter",
           code: "Enter",
           keyCode: 13,
           which: 13,
-          bubbles: true
-        });
-        el.dispatchEvent(kd);
-        const ku = new KeyboardEvent("keyup", {
-          key: "Enter",
-          code: "Enter",
-          keyCode: 13,
-          which: 13,
-          bubbles: true
-        });
-        el.dispatchEvent(ku);
+          bubbles: true,
+          cancelable: true
+        };
+        el.dispatchEvent(new KeyboardEvent("keydown", eventInit));
+        el.dispatchEvent(new KeyboardEvent("keyup", eventInit));
+      };
+
+      const hostSelectors = (() => {
+        if (host.includes("chat.openai.com")) return selectorMap.chatgpt;
+        if (host.includes("claude.ai")) return selectorMap.claude;
+        if (host.includes("grok") || host.includes("x.ai")) return selectorMap.grok;
+        if (host.includes("venice")) return selectorMap.venice;
+        if (host.includes("gemini.google.com")) return selectorMap.gemini;
+        return [];
+      })();
+
+      const selectors = [...hostSelectors, ...selectorMap.generic];
+
+      // kurze Verzoegerung, falls das Eingabefeld lazy geladen wird
+      await delay(120);
+      let el = deepFindVisible(selectors);
+      if (!el) {
+        await delay(180);
+        el = deepFindVisible(selectors);
+      }
+      // als letzte Option: gerade fokussiertes Element verwenden
+      if (!el && document.activeElement && document.activeElement !== document.body) {
+        el = document.activeElement;
       }
 
-      function findGenericInput() {
-        const candidates = [];
-        candidates.push(...document.querySelectorAll("textarea"));
-        candidates.push(...document.querySelectorAll('div[contenteditable="true"]'));
-        candidates.push(...document.querySelectorAll('input[type="text"], input[type="search"]'));
-        const visible = candidates.filter(el => el && el.offsetParent !== null);
-        if (visible.length === 0) return null;
-        return visible[visible.length - 1];
-      }
-
-      // ---------- ChatGPT ----------
-      if (host.includes("chat.openai.com")) {
-        let el =
-          document.querySelector('textarea') ||
-          document.querySelector('div[contenteditable="true"]');
-        if (!el) el = findGenericInput();
-        const res = setValue(el);
-        trySend(el);
-        return res;
-      }
-
-      // ---------- SuperGrok (grok / x.ai) ----------
-      if (host.includes("grok") || host.includes("x.ai")) {
-        // verschiedene mögliche Varianten probieren
-        let el =
-          document.querySelector('textarea[placeholder*="ask"]') ||
-          document.querySelector('textarea[placeholder*="Frage"]') ||
-          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
-          document.querySelector('div[contenteditable="true"]') ||
-          document.querySelector("textarea");
-        if (!el) el = findGenericInput();
-        console.log("Multi-AI-Browser: Grok input element", el);
-        const res = setValue(el);
-        trySend(el);
-        return res;
-      }
-
-      // ---------- Claude ----------
-      if (host.includes("claude.ai")) {
-        let el =
-          document.querySelector('textarea[placeholder*="Wie kann ich dir heute helfen"]') ||
-          document.querySelector('textarea[placeholder*="Type your message"]') ||
-          document.querySelector('[data-testid="chat-input"] textarea') ||
-          document.querySelector('[data-testid="chat-input"] div[contenteditable="true"]') ||
-          document.querySelector("textarea") ||
-          document.querySelector('div[contenteditable="true"]');
-        if (!el) el = findGenericInput();
-        console.log("Multi-AI-Browser: Claude input element", el);
-        const res = setValue(el);
-        trySend(el);
-        return res;
-      }
-
-      // ---------- Venice ----------
-      if (host.includes("venice")) {
-        let el =
-          document.querySelector('textarea[placeholder*="Ask a question"]') ||
-          document.querySelector("textarea") ||
-          document.querySelector('div[contenteditable="true"]');
-        if (!el) el = findGenericInput();
-        const res = setValue(el);
-        trySend(el);
-        return res;
-      }
-
-      // ---------- Gemini ----------
-      if (host.includes("gemini.google.com")) {
-        let el =
-          document.querySelector('div[contenteditable="true"][role="textbox"]') ||
-          document.querySelector('textarea[aria-label]') ||
-          document.querySelector("textarea");
-        if (!el) el = findGenericInput();
-        const res = setValue(el);
-        trySend(el);
-        return res;
-      }
-
-      // ---------- generischer Fallback ----------
-      const el = findGenericInput();
-      const res = setValue(el);
+      const res = setValueAndNotify(el);
       trySend(el);
       return res;
     })();
@@ -196,7 +320,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Menü-Events aus preload.js
+  // Menue-Events aus preload.js
   if (window.electronAPI) {
     if (window.electronAPI.onReloadAllPanels) {
       window.electronAPI.onReloadAllPanels(() => {

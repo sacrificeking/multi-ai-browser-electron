@@ -15,6 +15,16 @@ module.exports = {
       id: "panel-gemini",
       title: "Gemini",
       url: "https://gemini.google.com"
+    },
+    {
+      id: "panel-grok",
+      title: "Grok",
+      url: "https://grok.com"
+    },
+    {
+      id: "panel-venice",
+      title: "Venice",
+      url: "https://venice.ai"
     }
   ]
 };
