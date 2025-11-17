@@ -1,6 +1,6 @@
 {
   "name": "multi-ai-browser",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Electron-basierter Multi-Browser mit Meta-Prompt für mehrere AI-UIs",
   "main": "main.js",
   "scripts": {
